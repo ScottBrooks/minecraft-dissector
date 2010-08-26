@@ -23,9 +23,36 @@ static int proto_minecraft = -1;
 static dissector_handle_t minecraft_handle;
 
 static const value_string packettypenames[] = {
-      { 0, "Keep Alive" },
-      { 1, "Login" },
-      { 2, "Handshake" },
+      { 0x00, "Keep Alive" },
+      { 0x01, "Login" },
+      { 0x02, "Handshake" },
+      { 0x03, "Chat" },
+      { 0x04, "Update Time" },
+      { 0x0A, "Unknown(0x0A)" },
+      { 0x0B, "Player Position" },
+      { 0x0C, "Player Look" },
+      { 0x0D, "Player Move + Look" },
+      { 0x0E, "Block Dig" },
+      { 0x0F, "Place" },
+      { 0x10, "Block/Item Switch" },
+      { 0x11, "Add to Inventory" },
+      { 0x12, "Arm Animation" },
+      { 0x14, "Named Entity Spawn" },
+      { 0x15, "Entity Spawn" },
+      { 0x16, "Collect Item" },
+      { 0x17, "Unknown(0x17)" },
+      { 0x18, "Mob Spawn" },
+      { 0x1D, "Destroy Entity" },
+      { 0x1E, "Entity" },
+      { 0x1F, "Relative Entity Move" },
+      { 0x20, "Entity Look" },
+      { 0x21, "Relative Entity Move + Look" },
+      { 0x22, "Entity Teleport" },
+      { 0x32, "Pre-Chunk" },
+      { 0x33, "Map Chunk" },
+      { 0x34, "Multi Block Change" },
+      { 0x35, "Block Change" },
+      { 0xFF, "Kick" },
       { 0, NULL }
 };
 
@@ -82,7 +109,6 @@ void proto_reg_handoff_minecraft(void)
 static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
     int type;
-    printf("Disecting message!\n");
     if (check_col(pinfo->cinfo, COL_PROTOCOL))
         col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_TAG_MC);
     /* Clear out stuff in the info column */
@@ -99,69 +125,124 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
 
 
 }
-
-static guint get_minecraft_message_len(packet_info *pinfo, tvbuff_t *tvb, int offset)
-{
-    int packet;
-    guint len=0;
-
-    packet = tvb_get_guint8(tvb, 0);
-    switch(packet) {
-      case 0x00:
-        len = 1;
-        break;
-      case 0x01:
-        {
-          int len_strA, len_strB;
-          len_strA = tvb_get_ntohs(tvb, 5);
-          len_strB = tvb_get_ntohs(tvb, 7 + len_strA);
-          len = 5 + (2 + len_strA) + (2 + len_strB);
-        }
-        break;
-      case 0x02:
-        len = 3 + tvb_get_ntohs(tvb, 1);
-        break;
-      case 0x03:
-        len = tvb_get_ntohs(tvb,1);
-        break;
-      case 0x04:
-        len = 5;
-        break;
-      case 0x0A:
-        len = 2;
-        break;
-      case 0x0B:
-        len = 34;
-        break;
-      case 0x0C:
-        len = 10;
-        break;
-      case 0x0D:
-        len = 42;
-        break;
-      case 0x0E:
-        len = 12;
-        break;
-      /* ... */
-      case 0x32:
-        len = 10;
-        break;
-      case 0x33:
-        len = tvb_get_ntohs(tvb, 14) + 14;
-        break;
-    }
-    gint rest = tvb_reported_length_remaining(tvb, len);
-    if (rest != 0) {
-        pinfo->desegment_offset = len;
-        pinfo->desegment_len = rest;
-    }
-    printf("Packet: 0x%x Offset: %d Len: %d Rest: %d\n", packet, offset, len, rest);
-    return len;
+guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff_t *tvb) {
+	guint len=-1;
+	switch(type) {
+		case 0x00:
+			len = 1;
+			break;
+		case 0x01:
+			{
+				int len_strA, len_strB;
+				if ( available >= 7 ) {
+					len_strA = tvb_get_ntohs(tvb, offset + 5);
+					if ( available >= 9 + len_strA ) {
+						len_strB = tvb_get_ntohs(tvb, offset + 7 + len_strA);
+						len = 5 + (2 + len_strA) + (2 + len_strB);
+					}
+				}
+			}
+			break;
+		case 0x02:
+			if ( available >= 3 ) {
+				len = 3 + tvb_get_ntohs(tvb, offset + 1);
+			}
+			break;
+		case 0x03:
+			if ( available >= 3 ) {
+				len = 3 + tvb_get_ntohs(tvb, offset + 1);
+			}
+			break;
+		case 0x04:
+			len = 9;
+			break;
+		case 0x0A:
+			len = 2;
+			break;
+		case 0x0B:
+			len = 34;
+			break;
+		case 0x0C:
+			len = 10;
+			break;
+		case 0x0D:
+			len = 42;
+			break;
+		case 0x0E:
+			len = 12;
+			break;
+		case 0x15:
+			len = 23;
+			break;
+		case 0x18:
+			len = 20;
+			break;
+		case 0x1D:
+			len = 5;
+			break;
+		case 0x1E:
+			len = 5;
+			break;
+		case 0x1F:
+			len = 8;
+			break;
+		case 0x20:
+			len = 7;
+			break;
+		case 0x21:
+			len = 10;
+			break;
+		case 0x22:
+			len = 19;
+			break;
+		case 0x32:
+			len = 10;
+			break;
+		case 0x33:
+			if ( available >= 18 ) {
+				len = 18 + tvb_get_ntohl(tvb, offset + 14);
+			}
+			break;
+		case 0x34:
+			if ( available >= 11 ) {
+				// the size we get here is number of elements in the arrays
+				// and there are 3 arrays, a short, and two bytes, so multiply by 4
+            	len = 11 + (4 * tvb_get_ntohs(tvb, offset + 9));
+			}
+			break;
+		case 0x35:
+			len = 12;
+			break;
+		case 0xff:
+			if ( available >= 3 ) {
+            	len = 3 + tvb_get_ntohs(tvb, offset + 1);
+			}
+			break;
+		default:
+			printf("Unknown packet: 0x%x\n", type);
+			len = -1;
+	}
+	return len;
 
 }
+
 #define FRAME_HEADER_LEN 17
 void dissect_minecraft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, FRAME_HEADER_LEN, get_minecraft_message_len, dissect_minecraft_message);
+    guint8 packet;
+	guint offset=0;
+
+	while(offset < tvb_reported_length(tvb)) {
+    	packet = tvb_get_guint8(tvb, offset);
+    	gint available = tvb_reported_length_remaining(tvb, offset);
+		gint len = get_minecraft_packet_len(packet, offset, available, tvb);
+		if (len == -1 || len >= available) {
+			pinfo->desegment_offset = offset;
+			pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
+			return;
+		}
+		dissect_minecraft_message(tvb, pinfo, tree);
+    	offset += len;
+	}
 }
 
