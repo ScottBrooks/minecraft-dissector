@@ -110,6 +110,7 @@ static gint hf_mc_rotation = -1;
 static gint hf_mc_pitch = -1;
 static gint hf_mc_status = -1;
 static gint hf_mc_ybyte = -1;
+static gint hf_mc_yshort = -1;
 static gint hf_mc_dig = -1;
 static gint hf_mc_block_type = -1;
 static gint hf_mc_direction = -1;
@@ -120,6 +121,9 @@ static gint hf_mc_unique_id = -1;
 static gint hf_mc_unknown_byte = -1;
 static gint hf_mc_rotation_byte = -1;
 static gint hf_mc_pitch_byte = -1;
+static gint hf_mc_size_x = -1;
+static gint hf_mc_size_y = -1;
+static gint hf_mc_size_z = -1;
 
 void proto_register_minecraft(void)
 {
@@ -185,6 +189,9 @@ void proto_register_minecraft(void)
 			{ &hf_mc_ybyte,
 				{"Y", "mc.ybyte", FT_INT8, BASE_DEC, NULL, 0x0, "Y Coord", HFILL }
 			},
+			{ &hf_mc_yshort,
+				{"Y", "mc.yshort", FT_INT16, BASE_DEC, NULL, 0x0, "Y Coord", HFILL }
+			},
 			{ &hf_mc_dig,
 				{"Dig", "mc.dig", FT_INT8, BASE_DEC, NULL, 0x0, "Digging/Stopped/Broken", HFILL }
 			},
@@ -214,6 +221,15 @@ void proto_register_minecraft(void)
 			},
 			{ &hf_mc_pitch_byte,
 				{"Pitch", "mc.pitch_byte", FT_INT8, BASE_DEC, NULL, 0x0, "Pitch Byte", HFILL }
+			},
+			{ &hf_mc_size_x,
+				{"Size X", "mc.size_x", FT_INT8, BASE_DEC, NULL, 0x0, "X Size", HFILL }
+			},
+			{ &hf_mc_size_y,
+				{"Size Y", "mc.size_y", FT_INT8, BASE_DEC, NULL, 0x0, "Y Size", HFILL }
+			},
+			{ &hf_mc_size_z,
+				{"Size Z", "mc.size_z", FT_INT8, BASE_DEC, NULL, 0x0, "Z Size", HFILL }
 			},
 
 		};
@@ -344,7 +360,22 @@ static void add_pickup_spawn_details( proto_tree *tree, tvbuff_t *tvb, packet_in
 	proto_tree_add_item(tree, hf_mc_rotation_byte, tvb, offset + 20, 1, FALSE);
 	proto_tree_add_item(tree, hf_mc_pitch_byte, tvb, offset + 21, 1, FALSE);
 	proto_tree_add_item(tree, hf_mc_unknown_byte, tvb, offset + 22, 1, FALSE);
+}
+static void add_pre_chunk_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset) 
+{
+	proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 5, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 9, 1, FALSE);
+}
+static void add_map_chunk_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset) 
+{
+	proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_yshort, tvb, offset + 5, 2, FALSE);
+	proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 7, 4, FALSE);
 
+	proto_tree_add_item(tree, hf_mc_size_x, tvb, offset + 11, 1, FALSE);
+	proto_tree_add_item(tree, hf_mc_size_y, tvb, offset + 12, 1, FALSE);
+	proto_tree_add_item(tree, hf_mc_size_z, tvb, offset + 13, 1, FALSE);
 
 }
 static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint8 type,  guint32 offset, guint32 length)
@@ -412,6 +443,13 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
 				break;
 			case 0x15:
 				add_pickup_spawn_details(mc_tree, tvb, pinfo, offset);
+				break;
+				/* ... */
+			case 0x32:
+				add_pre_chunk_details(mc_tree, tvb, pinfo, offset);
+				break;
+			case 0x33:
+				add_map_chunk_details(mc_tree, tvb, pinfo, offset);
 				break;
 		}
 	} 
