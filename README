@@ -1,0 +1,12 @@
+run Make in the directory
+
+it expects /usr/include/wireshark to exist, on ubuntu aptitude install wireshark-dev
+
+It should copy the plugin to ~/.wireshark/plugins, and then loading a wireshark packet dump should decode the packet types.
+
+When I tested, I used a tcpdump with full packets, I'd recommend the same or things will probably break.
+
+ex:
+tcpdump -w minecraft.dump -s 0 'port 25565'
+
+Enjoy!
