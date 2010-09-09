@@ -124,6 +124,8 @@ static gint hf_mc_pitch_byte = -1;
 static gint hf_mc_size_x = -1;
 static gint hf_mc_size_y = -1;
 static gint hf_mc_size_z = -1;
+static gint hf_mc_block_type_byte = -1;
+static gint hf_mc_block_meta_byte = -1;
 
 void proto_register_minecraft(void)
 {
@@ -231,6 +233,12 @@ void proto_register_minecraft(void)
 			{ &hf_mc_size_z,
 				{"Size Z", "mc.size_z", FT_INT8, BASE_DEC, NULL, 0x0, "Z Size", HFILL }
 			},
+			{ &hf_mc_block_type_byte,
+				{"Block/Item Type", "mc.block_type_byte", FT_INT8, BASE_DEC, NULL, 0x0, "Block/Item Type", HFILL }
+			},
+			{ &hf_mc_block_meta_byte,
+				{"Block Metadata", "mc.block_meta_byte", FT_INT8, BASE_DEC, NULL, 0x0, "Block Metadata", HFILL }
+			},
 
 		};
         proto_minecraft = proto_register_protocol (
@@ -255,7 +263,6 @@ void proto_reg_handoff_minecraft(void)
     if (!Initialized) {
         minecraft_handle = create_dissector_handle(dissect_minecraft, proto_minecraft);
         dissector_add("tcp.port", 25565, minecraft_handle);
-        dissector_add("tcp.port", 2222, minecraft_handle);
     }
 }
 
@@ -334,6 +341,12 @@ static void add_block_dig_details( proto_tree *tree, tvbuff_t *tvb, packet_info 
 }
 static void add_place_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset) 
 {
+	proto_tree_add_item(tree, hf_mc_block_type, tvb, offset + 1, 2, FALSE);
+	proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 3, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 7, 1, FALSE);
+	proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 8, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_direction, tvb, offset + 12, 1, FALSE);
+
 }
 static void add_block_item_switch_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset) 
 {
@@ -378,17 +391,27 @@ static void add_map_chunk_details( proto_tree *tree, tvbuff_t *tvb, packet_info 
 	proto_tree_add_item(tree, hf_mc_size_z, tvb, offset + 13, 1, FALSE);
 
 }
+static void add_block_change_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset) 
+{
+	proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
+	proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 5, 1, FALSE);
+	proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 6, 4, FALSE);
+
+	proto_tree_add_item(tree, hf_mc_block_type_byte, tvb, offset + 10, 1, FALSE);
+	proto_tree_add_item(tree, hf_mc_block_meta_byte, tvb, offset + 11, 1, FALSE);
+
+}
 static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint8 type,  guint32 offset, guint32 length)
 {
     if (check_col(pinfo->cinfo, COL_PROTOCOL))
         col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_TAG_MC);
     /* Clear out stuff in the info column */
-    if(check_col(pinfo->cinfo,COL_INFO)){
-        col_clear(pinfo->cinfo,COL_INFO);
-    }
+//    if(check_col(pinfo->cinfo,COL_INFO)){
+//        col_clear(pinfo->cinfo,COL_INFO);
+//    }
 
     if (check_col(pinfo->cinfo, COL_INFO)) {
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%d > %d Info Type:[%s]",
+        col_add_fstr(pinfo->cinfo, COL_INFO, pinfo->match_port == pinfo->destport ? "C->S" : "S->C" ": %d > %d Info Type:[%s]",
             pinfo->srcport, pinfo->destport, 
             val_to_str(type, packettypenames, "Unknown Type:0x%02x"));
     }
@@ -451,6 +474,9 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
 			case 0x33:
 				add_map_chunk_details(mc_tree, tvb, pinfo, offset);
 				break;
+			case 0x35:
+				add_block_change_details(mc_tree, tvb, pinfo, offset);
+				break;
 		}
 	} 
 }
@@ -501,8 +527,26 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
 		case 0x0E:
 			len = 12;
 			break;
+		case 0x0F:
+			len = 13;
+			break;
+		case 0x10:
+			len = 7;
+			break;
+		case 0x11:
+			len = 6;
+			break;
+		case 0x12:
+			len = 6;
+			break;
 		case 0x15:
 			len = 23;
+			break;
+		case 0x16:
+			len = 9;
+			break;
+		case 0x17:
+			len = 18;
 			break;
 		case 0x18:
 			len = 20;
