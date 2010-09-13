@@ -59,7 +59,7 @@ static const value_string packettypenames[] = {
     { 0x33, "Map Chunk" },
     { 0x34, "Multi Block Change" },
     { 0x35, "Block Change" },
-    { 0x3b, "UnknownBlock(1.1.0)"},
+    { 0x3b, "Complex Entity"},
     { 0xFF, "Kick" },
     { 0, NULL }
 };
@@ -404,6 +404,21 @@ static void add_block_change_details( proto_tree *tree, tvbuff_t *tvb, packet_in
     proto_tree_add_item(tree, hf_mc_block_meta_byte, tvb, offset + 11, 1, FALSE);
 
 }
+static void add_spawn_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_yint, tvb, offset + 5, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 9, 4, FALSE);
+}
+
+static void add_complex_entity_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_yshort, tvb, offset + 5, 2, FALSE);
+    proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 7, 4, FALSE);
+
+}
+
 static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint8 type,  guint32 offset, guint32 length)
 {
     if (check_col(pinfo->cinfo, COL_PROTOCOL))
@@ -436,6 +451,9 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
             break;
         case 0x04:
             add_time_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x06:
+            add_spawn_details(mc_tree, tvb, pinfo, offset);
             break;
         case 0x0A:
             add_loaded_details(mc_tree, tvb, pinfo, offset);
@@ -479,6 +497,9 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
             break;
         case 0x35:
             add_block_change_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x3b:
+            add_complex_entity_details(mc_tree, tvb, pinfo, offset);
             break;
         }
     }
