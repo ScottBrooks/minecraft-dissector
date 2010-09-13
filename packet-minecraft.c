@@ -648,7 +648,7 @@ void dissect_minecraft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         packet = tvb_get_guint8(tvb, offset);
         gint available = tvb_reported_length_remaining(tvb, offset);
         gint len = get_minecraft_packet_len(packet, offset, available, tvb);
-        if (len == -1 || len >= available) {
+        if (len == -1 || len > available) {
             pinfo->desegment_offset = offset;
             if ( len == -1 ) {
                 pinfo->desegment_len = DESEGMENT_ONE_MORE_SEGMENT;
