@@ -524,7 +524,7 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
             o = offset + 7;
             size = 0;
             count = 0;
-            while ( o-offset < available && count != num_inv ) {
+            while ( o-offset < available && available -(o-offset) >= 2 && count != num_inv ) {
                 count++;
 
                 val = tvb_get_ntohs(tvb, o);
