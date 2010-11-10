@@ -108,11 +108,13 @@ static gint hf_mc_loaded = -1;
 static gint hf_mc_x = -1;
 static gint hf_mc_y = -1;
 static gint hf_mc_z = -1;
+static gint hf_mc_xbyte = -1;
+static gint hf_mc_ybyte = -1;
+static gint hf_mc_zbyte = -1;
 static gint hf_mc_stance = -1;
 static gint hf_mc_rotation = -1;
 static gint hf_mc_pitch = -1;
 static gint hf_mc_status = -1;
-static gint hf_mc_ybyte = -1;
 static gint hf_mc_yshort = -1;
 static gint hf_mc_dig = -1;
 static gint hf_mc_block_type = -1;
@@ -129,6 +131,9 @@ static gint hf_mc_size_y = -1;
 static gint hf_mc_size_z = -1;
 static gint hf_mc_block_type_byte = -1;
 static gint hf_mc_block_meta_byte = -1;
+static gint hf_mc_item_code = -1;
+static gint hf_mc_amount = -1;
+static gint hf_mc_life = -1;
 
 void proto_register_minecraft(void)
 {
@@ -191,8 +196,14 @@ void proto_register_minecraft(void)
             { &hf_mc_status,
               {"Status", "mc.status", FT_INT8, BASE_DEC, NULL, 0x0, "Status", HFILL }
             },
+            { &hf_mc_xbyte,
+              {"X", "mc.xbyte", FT_INT8, BASE_DEC, NULL, 0x0, "X Offset", HFILL }
+            },
             { &hf_mc_ybyte,
-              {"Y", "mc.ybyte", FT_INT8, BASE_DEC, NULL, 0x0, "Y Coord", HFILL }
+              {"Y", "mc.ybyte", FT_INT8, BASE_DEC, NULL, 0x0, "Y Offset", HFILL }
+            },
+            { &hf_mc_zbyte,
+              {"Z", "mc.zbyte", FT_INT8, BASE_DEC, NULL, 0x0, "Z Offset", HFILL }
             },
             { &hf_mc_yshort,
               {"Y", "mc.yshort", FT_INT16, BASE_DEC, NULL, 0x0, "Y Coord", HFILL }
@@ -241,6 +252,15 @@ void proto_register_minecraft(void)
             },
             { &hf_mc_block_meta_byte,
               {"Block Metadata", "mc.block_meta_byte", FT_INT8, BASE_DEC, NULL, 0x0, "Block Metadata", HFILL }
+            },
+            { &hf_mc_item_code,
+              {"Item Code", "mc.item_code", FT_INT16, BASE_DEC, NULL, 0x0, "Item Code", HFILL }
+            },
+            { &hf_mc_amount,
+              {"Amount", "mc.amount", FT_INT8, BASE_DEC, NULL, 0x0, "Amount", HFILL }
+            },
+            { &hf_mc_life,
+              {"Life", "mc.life", FT_INT16, BASE_DEC, NULL, 0x0, "Life", HFILL }
             },
 
         };
@@ -340,6 +360,11 @@ static void add_player_move_look_details( proto_tree *tree, tvbuff_t *tvb, packe
 }
 static void add_block_dig_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
+    proto_tree_add_item(tree, hf_mc_status, tvb, offset + 1, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 2, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 6, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 7, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_direction, tvb, offset + 11, 1, FALSE);
 
 }
 static void add_place_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
@@ -353,15 +378,37 @@ static void add_place_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pin
 }
 static void add_block_item_switch_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_item_code, tvb, offset + 5, 2, FALSE);
 }
 static void add_add_to_inventory_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
+    proto_tree_add_item(tree, hf_mc_block_type, tvb, offset + 1, 2, FALSE);
+    proto_tree_add_item(tree, hf_mc_amount, tvb, offset + 3, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_life, tvb, offset + 4, 2, FALSE);
 }
 static void add_arm_animation_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_unknown_byte, tvb, offset + 5, 1, FALSE);
 }
 static void add_named_entity_spawn_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
+    int name_len, o2;
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+    name_len = tvb_get_ntohs(tvb, offset + 5);
+    proto_tree_add_item(tree, hf_mc_username, tvb, offset + 7, name_len, FALSE);
+
+    o2 = offset + 7 + name_len;
+    proto_tree_add_item(tree, hf_mc_xint, tvb, o2, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_yint, tvb, o2 + 4, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_zint, tvb, o2 + 8, 4, FALSE);
+
+    proto_tree_add_item(tree, hf_mc_rotation_byte, tvb, o2 + 12, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_pitch_byte, tvb, o2 + 13, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_item_code, tvb, o2 + 14, 2, FALSE);
+
+
 }
 static void add_pickup_spawn_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
 {
@@ -416,6 +463,54 @@ static void add_complex_entity_details( proto_tree *tree, tvbuff_t *tvb, packet_
     proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 1, 4, FALSE);
     proto_tree_add_item(tree, hf_mc_yshort, tvb, offset + 5, 2, FALSE);
     proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 7, 4, FALSE);
+
+}
+static void add_collect_item_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_xbyte, tvb, offset + 5, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 6, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_zbyte, tvb, offset + 7, 1, FALSE);
+}
+static void add_object_vehicle_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_type, tvb, offset + 5, 1, FALSE);
+
+    proto_tree_add_item(tree, hf_mc_xint, tvb, offset + 6, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_yint, tvb, offset + 10, 4, FALSE);
+    proto_tree_add_item(tree, hf_mc_zint, tvb, offset + 14, 4, FALSE);
+}
+static void add_destroy_entity_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+}
+static void add_relative_entity_move_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+
+    proto_tree_add_item(tree, hf_mc_xbyte, tvb, offset + 5, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 6, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_zbyte, tvb, offset + 7, 1, FALSE);
+
+}
+static void add_entity_look_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+
+    proto_tree_add_item(tree, hf_mc_rotation_byte, tvb, offset + 5, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_pitch_byte, tvb, offset + 6, 1, FALSE);
+
+}
+static void add_relative_entity_move_look_details( proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset)
+{
+    proto_tree_add_item(tree, hf_mc_unique_id, tvb, offset + 1, 4, FALSE);
+
+    proto_tree_add_item(tree, hf_mc_xbyte, tvb, offset + 5, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_ybyte, tvb, offset + 6, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_zbyte, tvb, offset + 7, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_rotation_byte, tvb, offset + 8, 1, FALSE);
+    proto_tree_add_item(tree, hf_mc_pitch_byte, tvb, offset + 9, 1, FALSE);
 
 }
 
@@ -487,6 +582,24 @@ static void dissect_minecraft_message(tvbuff_t *tvb, packet_info *pinfo, proto_t
             break;
         case 0x15:
             add_pickup_spawn_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x16:
+            add_collect_item_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x17:
+            add_object_vehicle_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x1D:
+            add_destroy_entity_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x1F:
+            add_relative_entity_move_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x20:
+            add_entity_look_details(mc_tree, tvb, pinfo, offset);
+            break;
+        case 0x21:
+            add_relative_entity_move_look_details(mc_tree, tvb, pinfo, offset);
             break;
             /* ... */
         case 0x32:
