@@ -34,8 +34,9 @@ static const value_string packettypenames[] = {
     { 0x03, "Chat" },
     { 0x04, "Update Time" },
     { 0x05, "Inventory" },
-    { 0x06, "Unknown(1.1.0)"},
-    { 0x0A, "Unknown(0x0A)" },
+    { 0x06, "Compass Target"},
+    { 0x07, "Unknown(1.2.2) 0x07"},
+    { 0x0A, "Player on ground" },
     { 0x0B, "Player Position" },
     { 0x0C, "Player Look" },
     { 0x0D, "Player Move + Look" },
@@ -49,12 +50,14 @@ static const value_string packettypenames[] = {
     { 0x16, "Collect Item" },
     { 0x17, "Unknown(0x17)" },
     { 0x18, "Mob Spawn" },
+    { 0x1C, "Unknown(1.2.2) 0x1C"},
     { 0x1D, "Destroy Entity" },
     { 0x1E, "Entity" },
     { 0x1F, "Relative Entity Move" },
     { 0x20, "Entity Look" },
     { 0x21, "Relative Entity Move + Look" },
     { 0x22, "Entity Teleport" },
+    { 0x27, "Unknown(1.2.2) 0x27" },
     { 0x32, "Pre-Chunk" },
     { 0x33, "Map Chunk" },
     { 0x34, "Multi Block Change" },
@@ -631,7 +634,7 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
             len_strA = tvb_get_ntohs(tvb, offset + 5);
             if ( available >= 9 + len_strA ) {
                 len_strB = tvb_get_ntohs(tvb, offset + 7 + len_strA);
-                len = 5 + (2 + len_strA) + (2 + len_strB);
+                len = 5 + (2 + len_strA) + (2 + len_strB) + 9;
             }
         }
     }
@@ -685,6 +688,9 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
     case 0x0B:
         len = 34;
         break;
+    case 0x07:
+        len = 9;
+        break;
     case 0x0C:
         len = 10;
         break;
@@ -718,6 +724,9 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
     case 0x18:
         len = 20;
         break;
+    case 0x1C:
+        len = 11;
+        break;
     case 0x1D:
         len = 5;
         break;
@@ -735,6 +744,9 @@ guint get_minecraft_packet_len(guint8 type,guint offset, guint available, tvbuff
         break;
     case 0x22:
         len = 19;
+        break;
+    case 0x27:
+        len = 9;
         break;
     case 0x32:
         len = 10;
